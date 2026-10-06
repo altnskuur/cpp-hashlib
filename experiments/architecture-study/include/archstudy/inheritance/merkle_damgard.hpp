@@ -6,6 +6,8 @@
 
 #pragma once
 #include <array>
+#include <vector>
+#include <bit>
 
 namespace crypto::hash 
 {    
@@ -30,14 +32,13 @@ namespace crypto::hash
          * @tparam BlockSize   Message block size in bytes (64 for MD5).
          * @tparam LengthBytes Size of the length field in bytes (8 for MD5).
          */
-        template <typename WordType, std::size_t StateWords, std::size_t BlockSize, std::size_t LengthBytes = 8>
+        template <typename WordType, std::size_t StateWords, std::size_t BlockSize, std::endian Endianness, std::size_t LengthBytes = 8>
         class MerkleDamgard 
         {
 
             public:
                 using State = std::array<WordType, StateWords>;
                 using Block = std::array<std::uint8_t, BlockSize>;
-
 
             private:
                 State m_iv;                 // Initialization vector
@@ -50,9 +51,18 @@ namespace crypto::hash
                  * @brief Builds the final padded block(s) from the buffered bytes.
                  * @return One block, or two if the length field does not fit in the first.
                  */
-                std::vector<Block> pad() const 
+                std::vector<Block> pad() const // ALTNSKUUR: EMPTY
                 {
-                    std::vector<Block> blocks(1); // one all-zero block
+
+                }
+
+                /**
+                 * @brief Writes the length of the message in bits to the last bytes of the block.
+                 * @param block The block to write the length to.
+                 * @param length The length of the message in bits.
+                 */
+                void writeLength(Block& block, std::uint64_t length) const // ALTNSKUUR: EMPTY
+                {
 
                 }
             protected: 
@@ -83,23 +93,59 @@ namespace crypto::hash
                 void update(std::span<std::uint8_t> data)
                 {
                     m_totalLen += data.size();
+
+                    /// @note #1 If there is data in the buffer, fill it first
                     if(m_bufLen > 0)
                     {
-                        const auto n = std::min(data.size(), BlockSize - m_bufLen); 
-                        std::ranges::copy(data.first(n), m_buffer.data() + m_bufLen);
-                        bufLen_ += n;
+                        const auto fillLen = std::min(data.size(), BlockSize - m_bufLen); 
+                        std::ranges::copy(data.first(fillLen), m_buffer.data() + m_bufLen);
+                        m_bufLen = m_bufLen + fillLen;
+                        data = data.subspan(fillLen);
+
+                        /// @note m_buffer is still not full, return
                         if(m_bufLen < BlockSize)
                         {
-                            return;
+                            return; 
                         }
 
+                        /// @note m_buffer is full, compress it and reset the buffer length
+                        compress(m_state, m_buffer);
+                        m_bufLen = 0;
+                    }
+                    
+                    /// @note #2 Compress all full blocks in the input data
+                    while(data.size() >= BlockSize)
+                    {
+                        compress(m_state, data.data());
+                        data = data.subspan(BlockSize);
                     }
 
+                    /// @note #3 Keep the remaining bytes in the buffer
+                    std::ranges::copy(data, m_buffer.data());
+                    m_bufLen = data.size();
+                }
+
+                /**
+                 * @brief Computes the final hash value.
+                 * @return The computed hash value.
+                 */
+                std::vector<std::uint8_t> digest const() // ALTNSKUUR: EMPTY
+                {
+                    
+                }
+
+                /**
+                 * @brief Resets the hash function to its initial state.
+                 */
+                void reset()
+                {
+                    m_state = m_iv;
+                    m_bufLen = 0;
+                    m_totalLen = 0;
 
                 }
             
-        };
-    }
-
-}
+        }; 
+    } // namespace construction
+} // namespace crypto::hash
 
