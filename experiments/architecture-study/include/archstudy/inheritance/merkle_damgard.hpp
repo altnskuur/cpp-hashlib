@@ -79,6 +79,23 @@ namespace crypto::hash
                  */
                 virtual void compress(State& state, const Block& block) const = 0;
 
+
+                /**
+                 * @brief Converts a byte array to a word of the appropriate type.
+                 * @param bytes The byte array to convert.
+                 * @return The converted word.
+                 */
+                static WordType bytesToWord(const std::uint8_t* p_bytes)
+                {   
+                    WordType bytes2Word = 0;
+                    for(std::size_t index = 0; index < sizeof(WordType); ++index)
+                    {
+                        std::size_t shift = (Endianness == std::endian::big)  ? 8 * (sizeof(WordType) - index - 1)
+                                                        : 8 * index;
+                        bytes2Word |= static_cast<WordType>(p_bytes[index]) << shift;
+                    }
+                    return bytes2Word;
+                }
             public:
                 /**
                  * @brief Virtual destructor for the Merkle-Damgard class.
